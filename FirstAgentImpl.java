@@ -15,6 +15,7 @@ public class FirstAgentImpl implements Agent {
 	private boolean firstAction = true;
 	private int numPlayers;
 	private int index;
+	private int[] age;
 	
 	/**
 	 * Reports the agents name
@@ -33,10 +34,26 @@ public class FirstAgentImpl implements Agent {
 		if(firstAction){
 			init(s);
 		}
+		for (int i = 0; i < age.length; i++) {
+			age[i] += 1;
+		}
 		seenCards(s);
 		getHints(s);
 		hintsGiven(s);
-		return null;
+		Action a = null;
+		try {
+			a = playKnown(s);
+			//TODO: if greater than 1 life and last round play at 0.2 probabilty
+			if (a == null && s.getHintTokens() > 0) a = hintObviouslyDiscardable(s);
+			if (a == null && s.getHintTokens() > 0) a = hintPlayable(s);
+			if (a == null && s.getHintTokens() > 0) a = hintMostInfo(s);
+			if (a == null && s.getHintTokens() < 8) a = discardKnown(s);
+			//TODO: play at 0.7 probability
+			if (a == null && s.getHintTokens() < 8) a = discardOldest(s);
+		} catch (IllegalActionException e) {
+			e.printStackTrace();
+		}
+		return a;
 	}
 
 	/**
@@ -55,10 +72,12 @@ public class FirstAgentImpl implements Agent {
 		if(numPlayers>3){
 			colours = new Colour[4];
 			values = new int[4];
+			age = new int[4];
 		}
 		else{
 			colours = new Colour[5];
 			values = new int[5];
+			age = new int[5];
 		}
 		index = s.getNextPlayer();
 		for (Colour c : Colour.values()) {
@@ -166,6 +185,7 @@ public class FirstAgentImpl implements Agent {
 			if(colours[i]!=null && values[i]==playable(s,colours[i])){
 				colours[i] = null;
 				values[i] = 0;
+				age[i] = 0;
 				return new Action(index, toString(), ActionType.PLAY,i);
 			}
 		}
@@ -179,10 +199,28 @@ public class FirstAgentImpl implements Agent {
 				if(colours[i]!=null && values[i]>0 && values[i]<playable(s,colours[i])){
 					colours[i] = null;
 					values[i] = 0;
+					age[i] = 0;
 					return new Action(index, toString(), ActionType.DISCARD,i);
 				}
 			}
 		}
+		return null;
+	}
+	
+	public Action discardOldest(State s) throws IllegalActionException{
+		int oldest = 0;
+		int oldestCard = 0;
+		for (int i = 0; i < age.length; i++) {
+			if (age[i] > oldest){
+				oldest = age[i];
+				oldestCard = i;
+			}
+		}
+		return new Action(index, toString(), ActionType.DISCARD, oldestCard);
+	}
+	
+	public Action playProbablySafe(State s, double prob){
+		//TODO:
 		return null;
 	}
 	
@@ -193,7 +231,7 @@ public class FirstAgentImpl implements Agent {
 		return (Card[]) temp.toArray();
 	}
 	
-	public Action hintMostInfo(State s) throws IllegalActionException { ;
+	public Action hintMostInfo(State s) throws IllegalActionException {
 		int playerToHint = 0;
 		Colour maxColour = Colour.BLUE;
 		int maxColourAm = 0;
